@@ -1,407 +1,640 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useRole } from '../app/useRole'
+import { useMemo, useState } from "react"
+import { usePlayers } from "@/hooks/usePlayers"
+import { PlayerRow, PlayerStatus } from "@/services/players.service"
+import { useTeams } from "@/hooks/useTeams"
+
+import { useNavigate } from "react-router-dom"
+
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Eye, Link, Pencil, Trash2 } from "lucide-react"
+
+/* ---------------- Utils ---------------- */
+
+function normalize(s: string) {
+  return s.trim()
+}
+
+function validatePlayerInput(p: {
+  team_id: string
+  first_name: string
+  last_name: string
+}) {
+  const first = normalize(p.first_name)
+  const last = normalize(p.last_name)
+
+  if (!p.team_id) return "L’équipe est obligatoire."
+  if (!first) return "Le prénom est obligatoire."
+  if (!last) return "Le nom est obligatoire."
+  if (first.length < 2) return "Le prénom doit contenir au moins 2 caractères."
+  if (last.length < 2) return "Le nom doit contenir au moins 2 caractères."
+  return null
+}
+
+function statusBadge(status: PlayerStatus) {
+  switch (status) {
+    case "ACTIVE":
+      return <Badge>ACTIVE</Badge>
+    case "INJURED":
+      return <Badge variant="outline">INJURED</Badge>
+    case "SUSPENDED":
+      return <Badge variant="destructive">SUSPENDED</Badge>
+  }
+}
+
+function formatAge(birthDate: string | null) {
+  if (!birthDate) return "—"
+  const birth = new Date(birthDate)
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const m = today.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+    age--
+  }
+  return `${age} ans`
+}
+
+function formatDateFR(date: string | null) {
+  if (!date) return "—"
+  return new Date(date).toLocaleDateString("fr-FR")
+}
+
+/* ---------------- Types ---------------- */
 
 type FormState = {
-  player_id?: string
   team_id: string
   first_name: string
   last_name: string
   position: string
   status: PlayerStatus
-  user_id: string
   photo_url: string
+
+  // ✅ PROFIL JOUEUR
+  birth_date: string
+  birth_place: string
+  height_cm: number | ""
+  weight_kg: number | ""
+  neighborhood: string
 }
 
-function makeEmptyForm(teams: Team[]): FormState {
-  return {
-    team_id: teams[0]?.team_id ?? '',
-    first_name: '',
-    last_name: '',
-    position: '',
-    status: 'ACTIVE',
-    user_id: '',
-    photo_url: ''
-  }
+
+const emptyForm: FormState = {
+  team_id: "",
+  first_name: "",
+  last_name: "",
+  position: "",
+  status: "ACTIVE",
+  photo_url: "",
+
+  birth_date: "",
+  birth_place: "",
+  height_cm: "",
+  weight_kg: "",
+  neighborhood: "",
+
 }
 
-function initials(p: { first_name: string; last_name: string }) {
-  const a = (p.first_name?.trim()?.[0] ?? '').toUpperCase()
-  const b = (p.last_name?.trim()?.[0] ?? '').toUpperCase()
-  return (a + b) || '?'
-}
-
-function statusLabel(s: PlayerStatus) {
-  switch (s) {
-    case 'ACTIVE':
-      return 'ACTIF'
-    case 'INJURED':
-      return 'BLESSE'
-    case 'SUSPENDED':
-      return 'SUSPENDU'
-    default:
-      return s
-  }
-}
+/* ---------------- Page ---------------- */
 
 export function PlayersPage() {
-  const { role, loading: roleLoading, error: roleError } = useRole()
-  const isStaff = role === 'ADMIN' || role === 'COACH'
+  const { teams, loadingTeams, teamsError } = useTeams()
+  const { items, loading, error, search, status, actions } = usePlayers(undefined)
 
-  const [teams, setTeams] = useState<Team[]>([])
-  const [players, setPlayers] = useState<Player[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [teamFilter, setTeamFilter] = useState<string>("ALL")
 
-  const [form, setForm] = useState<FormState>(() => makeEmptyForm([]))
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<PlayerRow | null>(null)
+  const [form, setForm] = useState<FormState>(emptyForm)
+  const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const [query, setQuery] = useState('')
+  const navigate = useNavigate()
 
-  const teamById = useMemo(() => {
-    const m = new Map<string, Team>()
-    teams.forEach(t => m.set(t.team_id, t))
-    return m
+  const teamNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    teams.forEach((t) => map.set(t.team_id, t.name))
+    return map
   }, [teams])
 
-  const filteredPlayers = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return players
-    return players.filter(p => {
-      const full = `${p.first_name} ${p.last_name}`.toLowerCase()
-      return full.includes(q)
-    })
-  }, [players, query])
+  const filteredItems = useMemo(() => {
+    if (teamFilter === "ALL") return items
+    return items.filter((p) => p.team_id === teamFilter)
+  }, [items, teamFilter])
 
-  async function refresh() {
-    setError(null)
-    setLoading(true)
-    try {
-      const [t, p] = await Promise.all([listTeams(), listPlayers()])
-      setTeams(t)
-      setPlayers(p)
+  const title = editing ? "Modifier le joueur" : "Ajouter un joueur"
 
-      // Ajuster le form si team_id vide
-      setForm(prev => {
-        const next = { ...prev }
-        if (!next.team_id) next.team_id = t[0]?.team_id ?? ''
-        return next
-      })
-    } catch (e) {
-      setError(toErrorMessage(e))
-    } finally {
-      setLoading(false)
-    }
+  const POSITION_ORDER: Record<string, number> = {
+    "meneur": 1,
+    "arriere": 2,
+    "ailier": 3,
+    "ailier fort": 4,
+    "pivot": 5,
   }
 
-  useEffect(() => {
-    refresh()
-  }, [])
+  const sortedPlayers = [...items].sort((a, b) => {
+  const pa = POSITION_ORDER[normalizePosition(a.position) ?? ""] ?? 99
+  const pb = POSITION_ORDER[normalizePosition(b.position) ?? ""] ?? 99
+
+    if (pa !== pb) {
+      return pa - pb
+    }
+
+    // même poste → tri alphabétique
+    return (
+      a.last_name.localeCompare(b.last_name) ||
+      a.first_name.localeCompare(b.first_name)
+    )
+  })
+
+  function normalizePosition(value?: string | null) {
+    return value
+      ?.toLowerCase()
+      .normalize("NFD")              // supprime les accents
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")          // espaces multiples
+      .trim()
+  }
 
   function resetForm() {
-    setForm(makeEmptyForm(teams))
+    setEditing(null)
+    setForm(emptyForm)
+    setFormError(null)
+    setSaving(false)
   }
 
-  function onEdit(p: Player) {
+  function openCreate() {
+    resetForm()
+    setOpen(true)
+  }
+
+  function openEdit(p: PlayerRow) {
+    setEditing(p)
     setForm({
-      player_id: p.player_id,
       team_id: p.team_id,
       first_name: p.first_name,
       last_name: p.last_name,
-      position: p.position ?? '',
+      position: p.position ?? "",
       status: p.status,
-      user_id: p.user_id ?? '',
-      photo_url: p.photo_url ?? ''
+      photo_url: p.photo_url ?? "",
+
+      birth_date: p.birth_date ?? "",
+      birth_place: p.birth_place ?? "",
+      height_cm: p.height_cm ?? "",
+      weight_kg: p.weight_kg ?? "",
+      neighborhood: p.neighborhood ?? "",
     })
+    setFormError(null)
+    setOpen(true)
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!isStaff) return
+  async function onSubmit() {
+    setFormError(null)
+
+    const err = validatePlayerInput(form)
+    if (err) {
+      setFormError(err)
+      return
+    }
 
     setSaving(true)
-    setError(null)
-
     try {
-      if (!form.team_id) {
-        throw new Error("Aucune équipe sélectionnée. Crée d'abord une équipe.")
-      }
-
-      const payload = {
-        team_id: form.team_id,
-        first_name: form.first_name.trim(),
-        last_name: form.last_name.trim(),
-        position: form.position.trim() ? form.position.trim() : null,
-        status: form.status,
-        user_id: form.user_id.trim() ? form.user_id.trim() : null,
-        photo_url: form.photo_url.trim() ? form.photo_url.trim() : null
-      }
-
-      if (form.player_id) {
-        const updated = await updatePlayer(form.player_id, payload as any)
-        setPlayers(prev => prev.map(x => (x.player_id === updated.player_id ? updated : x)))
+      if (!editing) {
+        await actions.add({
+          team_id: form.team_id, // ✅ plus de placeholder
+          first_name: normalize(form.first_name),
+          last_name: normalize(form.last_name),
+          position: normalize(form.position) || null,
+          status: form.status,
+          photo_url: normalize(form.photo_url) || null,
+          birth_date: form.birth_date || null,
+          birth_place: form.birth_place || null,
+          height_cm: form.height_cm === "" ? null : form.height_cm,
+          weight_kg: form.weight_kg === "" ? null : form.weight_kg,
+          neighborhood: form.neighborhood || null,
+        })
       } else {
-        const created = await createPlayer(payload as any)
-        setPlayers(prev => [created, ...prev])
+        await actions.edit(editing.player_id, {
+          first_name: normalize(form.first_name),
+          last_name: normalize(form.last_name),
+          position: normalize(form.position) || null,
+          status: form.status,
+          photo_url: normalize(form.photo_url) || null,
+          birth_date: form.birth_date || null,
+          birth_place: form.birth_place || null,
+          height_cm: form.height_cm === "" ? null : form.height_cm,
+          weight_kg: form.weight_kg === "" ? null : form.weight_kg,
+          neighborhood: form.neighborhood || null,
+        })
       }
-
+      setOpen(false)
       resetForm()
-    } catch (e2) {
-      setError(toErrorMessage(e2))
+    } catch (e: any) {
+      setFormError(e.message ?? "Erreur sauvegarde")
     } finally {
       setSaving(false)
     }
   }
 
-  async function onDelete(id: string) {
-    if (!isStaff) return
-    const ok = confirm('Supprimer ce joueur ?')
-    if (!ok) return
-
-    setError(null)
+  async function onDelete(player_id: string) {
     try {
-      await deletePlayer(id)
-      setPlayers(prev => prev.filter(p => p.player_id !== id))
-    } catch (e) {
-      setError(toErrorMessage(e))
+      await actions.remove(player_id)
+    } catch (e: any) {
+      alert(e.message ?? "Erreur suppression")
     }
   }
 
-  if (roleLoading) return <div style={{ padding: 24 }}>Chargement...</div>
-  if (roleError) return <div style={{ padding: 24, color: 'crimson' }}>{roleError}</div>
-
   return (
-    <div style={{ padding: 24, fontFamily: 'system-ui' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-        <h1 style={{ margin: 0 }}>Joueurs</h1>
-        <div style={{ opacity: 0.8 }}>Rôle : {role}</div>
-      </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Joueurs</h2>
+          <p className="text-sm text-muted-foreground">
+            Gestion de l’effectif par équipe
+          </p>
+        </div>
 
-      {error && <div style={{ color: 'crimson', marginTop: 12 }}>{error}</div>}
+        <Dialog
+          open={open}
+          onOpenChange={(v) => {
+            setOpen(v)
+            if (!v) resetForm()
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button onClick={openCreate}>Ajouter</Button>
+          </DialogTrigger>
 
-      {loading ? (
-        <div style={{ marginTop: 16 }}>Chargement...</div>
-      ) : (
-        <>
-          {teams.length === 0 ? (
-            <div style={{ marginTop: 16, padding: 12, border: '1px solid #f0c', borderRadius: 8 }}>
-              <strong>Aucune équipe trouvée.</strong>
-              <div style={{ marginTop: 6 }}>
-                Crée au moins une équipe dans la table <code>teams</code> avant d’ajouter des joueurs.
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Bloc formulaire (staff uniquement) */}
-              {isStaff && (
-                <form
-                  onSubmit={onSubmit}
-                  style={{
-                    border: '1px solid #ddd',
-                    padding: 12,
-                    borderRadius: 8,
-                    marginTop: 16,
-                    marginBottom: 16
-                  }}
-                >
-                  <h3 style={{ marginTop: 0 }}>
-                    {form.player_id ? 'Modifier joueur' : 'Ajouter joueur'}
-                  </h3>
+          <DialogContent className="sm:max-w-lg max-h-[90vh] p-0">
+            <DialogHeader>
+              <DialogTitle>{title}</DialogTitle>
+            </DialogHeader>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <label>
-                      Équipe
-                      <select
-                        value={form.team_id}
-                        onChange={(e) => setForm(f => ({ ...f, team_id: e.target.value }))}
-                        style={{ width: '100%', padding: 8, marginTop: 4 }}
-                        required
-                      >
-                        {teams.map(t => (
-                          <option key={t.team_id} value={t.team_id}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label>
-                      Statut
-                      <select
-                        value={form.status}
-                        onChange={(e) => setForm(f => ({ ...f, status: e.target.value as PlayerStatus }))}
-                        style={{ width: '100%', padding: 8, marginTop: 4 }}
-                      >
-                        <option value="ACTIVE">ACTIF</option>
-                        <option value="INJURED">BLESSE</option>
-                        <option value="SUSPENDED">SUSPENDU</option>
-                      </select>
-                    </label>
-
-                    <label>
-                      Prénom
-                      <input
-                        value={form.first_name}
-                        onChange={(e) => setForm(f => ({ ...f, first_name: e.target.value }))}
-                        style={{ width: '100%', padding: 8, marginTop: 4 }}
-                        required
-                      />
-                    </label>
-
-                    <label>
-                      Nom
-                      <input
-                        value={form.last_name}
-                        onChange={(e) => setForm(f => ({ ...f, last_name: e.target.value }))}
-                        style={{ width: '100%', padding: 8, marginTop: 4 }}
-                        required
-                      />
-                    </label>
-
-                    <label>
-                      Poste
-                      <input
-                        value={form.position}
-                        onChange={(e) => setForm(f => ({ ...f, position: e.target.value }))}
-                        placeholder="PG/SG/SF/PF/C"
-                        style={{ width: '100%', padding: 8, marginTop: 4 }}
-                      />
-                    </label>
-
-                    <label>
-                      Photo (URL) — placeholder
-                      <input
-                        value={form.photo_url}
-                        onChange={(e) => setForm(f => ({ ...f, photo_url: e.target.value }))}
-                        placeholder="https://... (optionnel)"
-                        style={{ width: '100%', padding: 8, marginTop: 4 }}
-                      />
-                    </label>
-
-                    <label style={{ gridColumn: '1 / -1' }}>
-                      user_id (UUID Auth) — optionnel
-                      <input
-                        value={form.user_id}
-                        onChange={(e) => setForm(f => ({ ...f, user_id: e.target.value }))}
-                        placeholder="UUID (si joueur a un compte Supabase)"
-                        style={{ width: '100%', padding: 8, marginTop: 4 }}
-                      />
-                    </label>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                    <button type="submit" disabled={saving}>
-                      {saving ? 'Enregistrement...' : 'Enregistrer'}
-                    </button>
-                    <button type="button" onClick={resetForm} disabled={saving}>
-                      Réinitialiser
-                    </button>
-                  </div>
-                </form>
+            <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-140px)] space-y-4">
+              {formError && (
+                <div className="text-sm text-red-600">{formError}</div>
               )}
 
-              {/* Recherche */}
-              <div style={{ marginTop: 8, marginBottom: 12, display: 'flex', gap: 12, alignItems: 'center' }}>
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Rechercher un joueur (nom/prénom)"
-                  style={{ flex: 1, padding: 10 }}
-                />
-                <button onClick={refresh}>Rafraîchir</button>
-              </div>
+              {teamsError && (
+                <div className="text-sm text-red-600">
+                  Erreur chargement équipes : {teamsError}
+                </div>
+              )}
 
-              {/* Liste */}
-              <div style={{ overflowX: 'auto' }}>
-                <table width="100%" cellPadding={10} style={{ borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ textAlign: 'left', borderBottom: '1px solid #ddd' }}>
-                      <th>Photo</th>
-                      <th>Équipe</th>
-                      <th>Joueur</th>
-                      <th>Poste</th>
-                      <th>Statut</th>
-                      {isStaff && <th>Actions</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPlayers.map(p => (
-                      <tr key={p.player_id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                        <td style={{ width: 70 }}>
-                          {p.photo_url ? (
-                            <img
-                              src={p.photo_url}
-                              alt="photo joueur"
-                              width={44}
-                              height={44}
-                              style={{ borderRadius: '50%', objectFit: 'cover', border: '1px solid #ddd' }}
-                              onError={(e) => {
-                                ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-                              }}
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: '50%',
-                                display: 'grid',
-                                placeItems: 'center',
-                                border: '1px solid #ddd',
-                                background: '#f6f6f6',
-                                fontWeight: 700
-                              }}
-                              title="Photo à venir"
-                            >
-                              {initials(p)}
-                            </div>
-                          )}
-                        </td>
-                        <td>{teamById.get(p.team_id)?.name ?? p.team_id}</td>
-                        <td>{p.last_name} {p.first_name}</td>
-                        <td>{p.position ?? ''}</td>
-                        <td>{statusLabel(p.status)}</td>
-                        {isStaff && (
-                          <td>
-                            <button onClick={() => onEdit(p)} style={{ marginRight: 8 }}>
-                              Modifier
-                            </button>
-                            <button onClick={() => onDelete(p.player_id)}>
-                              Supprimer
-                            </button>
-                          </td>
-                        )}
-                      </tr>
+              {/* Équipe */}
+              <div className="space-y-2">
+                <Label>Équipe</Label>
+                <Select
+                  value={form.team_id}
+                  onValueChange={(v) =>
+                    setForm((p) => ({ ...p, team_id: v }))
+                  }
+                  disabled={loadingTeams}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        loadingTeams ? "Chargement..." : "Choisir une équipe"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map((t) => (
+                      <SelectItem key={t.team_id} value={t.team_id}>
+                        {t.name}
+                      </SelectItem>
                     ))}
-
-                    {filteredPlayers.length === 0 && (
-                      <tr>
-                        <td colSpan={isStaff ? 6 : 5} style={{ padding: 16, opacity: 0.8 }}>
-                          Aucun joueur
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                  </SelectContent>
+                </Select>
               </div>
-            </>
-          )}
-        </>
-      )}
 
-      {/* Note sécurité */}
-      <div style={{ marginTop: 18, fontSize: 12, opacity: 0.7 }}>
-        Les droits d’accès sont appliqués côté base (RLS). L’interface masque seulement les actions non autorisées. [2](https://supabase.com/docs/guides/database/postgres/row-level-security)
+              {/* Prénom / Nom */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Prénom</Label>
+                  <Input
+                    value={form.first_name}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, first_name: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Nom</Label>
+                  <Input
+                    value={form.last_name}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, last_name: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* PROFIL JOUEUR */}
+              <div className="pt-4 border-t space-y-4">
+                <h4 className="text-sm font-semibold">Profil joueur</h4>
+
+                {/* Date + Lieu de naissance */}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Date de naissance</Label>
+                    <Input
+                      type="date"
+                      value={form.birth_date}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, birth_date: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Lieu de naissance</Label>
+                    <Input
+                      placeholder="Ex : Conakry"
+                      value={form.birth_place}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, birth_place: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Taille / Poids */}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Taille (cm)</Label>
+                    <Input
+                      type="number"
+                      value={form.height_cm}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          height_cm: e.target.value === "" ? "" : Number(e.target.value),
+                        }))
+                      }
+                      placeholder="177"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Poids (kg)</Label>
+                    <Input
+                      type="number"
+                      value={form.weight_kg}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          weight_kg: e.target.value === "" ? "" : Number(e.target.value),
+                        }))
+                      }
+                      placeholder="73"
+                    />
+                  </div>
+                </div>
+
+                {/* Quartier */}
+                <div className="space-y-2">
+                  <Label>Quartier</Label>
+                  <Input
+                    placeholder="Ex : Hafia 2"
+                    value={form.neighborhood}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, neighborhood: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+              {/* Poste / Statut */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Poste</Label>
+                  <Input
+                    placeholder="Ex: Meneur"
+                    value={form.position}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, position: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Statut</Label>
+                  <Select
+                    value={form.status}
+                    onValueChange={(v) =>
+                      setForm((p) => ({ ...p, status: v as PlayerStatus }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ACTIVE">ACTIVE</SelectItem>
+                      <SelectItem value="INJURED">INJURED</SelectItem>
+                      <SelectItem value="SUSPENDED">SUSPENDED</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Photo */}
+              <div className="space-y-2">
+                <Label>Photo URL (optionnel)</Label>
+                <Input
+                  placeholder="https://..."
+                  value={form.photo_url}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, photo_url: e.target.value }))
+                  }
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="px-6 py-4 border-t flex justify-end gap-3 bg-background">
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Annuler
+                </Button>
+                <Button onClick={onSubmit} disabled={saving}>
+                  {saving ? "Enregistrement..." : "Enregistrer"}
+                </Button>
+              </div>
+
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Filtres */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Input
+          className="sm:max-w-sm"
+          placeholder="Rechercher (prénom/nom)..."
+          value={search}
+          onChange={(e) => actions.setSearch(e.target.value)}
+        />
+
+        <div className="flex gap-3">
+          <Select value={teamFilter} onValueChange={setTeamFilter}>
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Filtrer équipe" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Toutes les équipes</SelectItem>
+              {teams.map((t) => (
+                <SelectItem key={t.team_id} value={t.team_id}>
+                  {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={status}
+            onValueChange={(v) => actions.setStatus(v as any)}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Filtrer statut" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tous</SelectItem>
+              <SelectItem value="ACTIVE">ACTIVE</SelectItem>
+              <SelectItem value="INJURED">INJURED</SelectItem>
+              <SelectItem value="SUSPENDED">SUSPENDED</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button variant="outline" onClick={actions.reload} disabled={loading}>
+            Actualiser
+          </Button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-lg border bg-background">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nom</TableHead>
+              <TableHead>Poste</TableHead>
+              <TableHead>Profil</TableHead>
+              <TableHead>Statut</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-muted-foreground">
+                  Chargement...
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-red-600">
+                  {error}
+                </TableCell>
+              </TableRow>
+            ) : filteredItems.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-muted-foreground">
+                  Aucun joueur.
+                </TableCell>
+              </TableRow>
+            ) : (
+              sortedPlayers.map((p) => (
+                <TableRow key={p.player_id}>
+                  <TableCell className="font-medium">
+                    {p.last_name} {p.first_name}
+                  </TableCell>
+                  <TableCell>{p.position ?? "—"}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground leading-tight">
+                  <div>
+                    {formatDateFR(p.birth_date)} • {formatAge(p.birth_date)}
+                  </div>
+                  <div>
+                    {p.height_cm ? `${p.height_cm} cm` : "—"} • {p.weight_kg ? `${p.weight_kg} kg` : "—"}
+                  </div>
+                  <div>
+                    {p.birth_place ?? "—"}{p.neighborhood ? ` — ${p.neighborhood}` : ""}
+                  </div>
+                </TableCell>
+                  <TableCell>{statusBadge(p.status)}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="inline-flex gap-2">           
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/players/${p.player_id}`)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+
+                      <Button size="sm" variant="outline" onClick={() => openEdit(p)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Supprimer ce joueur ?
+                            </AlertDialogTitle>
+                          </AlertDialogHeader>
+                          <div className="mt-4 flex justify-end gap-3">
+                            <AlertDialogCancel>Annuler</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDelete(p.player_id)}>
+                              Confirmer
+                            </AlertDialogAction>
+                          </div>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   )
 }
-``
-import type { Player, Team, PlayerStatus } from '../types/db'
-import {
-  listPlayers,
-  listTeams,
-  createPlayer,
-  updatePlayer,
-  deletePlayer,
-  toErrorMessage
-} from '../lib/api'

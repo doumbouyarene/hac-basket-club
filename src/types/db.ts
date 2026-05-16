@@ -37,6 +37,9 @@ export type Event = {
   notes: string | null
   created_by: string | null
   created_at: string
+  home_score: number | null
+  away_score: number | null
+  opponent_name?: string | null
 }
 
 export type AttendanceStatus = 'PENDING' | 'PRESENT' | 'ABSENT' | 'EXCUSED' | 'LATE'

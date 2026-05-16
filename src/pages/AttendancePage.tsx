@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom'
 import { useRole } from '../app/useRole'
 import type { AttendanceStatus } from '../types/db'
 import { ensureAttendanceForEvent, getEventById, listAttendanceByEvent, updateAttendance, toErrorMessage } from '../lib/api'
+import { FileDown } from "lucide-react"
+import { Button } from '@/components/ui/button'
 
 const STATUSES: AttendanceStatus[] = ['PENDING', 'PRESENT', 'ABSENT', 'EXCUSED', 'LATE']
 
@@ -77,6 +79,16 @@ export function AttendancePage() {
       setWorking(false)
     }
   }
+  
+  function openPresencePdf() {
+    if (!eventId) return
+
+    window.open(
+      `${import.meta.env.VITE_BACKEND_URL}/api/events/${eventId}/presences/pdf`,
+      "_blank"
+    )
+  }
+
 
   if (roleLoading) return <div style={{ padding: 24 }}>Chargement...</div>
   if (roleError) return <div style={{ padding: 24, color: 'crimson' }}>{roleError}</div>
@@ -103,9 +115,14 @@ export function AttendancePage() {
 
               {isStaff && (
                 <div style={{ marginTop: 10 }}>
-                  <button onClick={onGenerate} disabled={working}>
-                    {working ? '...' : 'Générer / compléter les convocations'}
-                  </button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={openPresencePdf}
+                    className="flex items-center gap-2"
+                  >
+                    <FileDown className="h-4 w-4" />
+                  </Button>
                 </div>
               )}
             </div>
