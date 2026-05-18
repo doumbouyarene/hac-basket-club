@@ -24,7 +24,7 @@ export function useDashboardKpis() {
       }
 
       // 3) KPIs
-      const kpis = await fetchDashboardKpis(new Date())
+      const kpis = await fetchDashboardKpis()
       if (mounted) setData(kpis)
     }
 

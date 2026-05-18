@@ -305,7 +305,6 @@ export function EventsPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Événements</h1>
           <p className="text-sm text-muted-foreground">
             Matchs, entraînements et activités
           </p>
@@ -502,10 +501,13 @@ export function EventsPage() {
                 <TableRow key={ev.event_id}>
                   <TableCell>
                     <Badge variant="outline"
-                          className={ev.event_type === "MATCH" && isWin(ev)
-                              ? "bg-green-100 text-green-800 border-green-200"
-                              : ""
-                          }
+                          className={
+                          ev.event_type === "MATCH" && isWin(ev)
+                            ? "bg-green-100 text-green-800 border-green-200"
+                            : ev.event_type === "MATCH" && ev.home_score !== null && ev.away_score !== null && ev.home_score < ev.away_score
+                            ? "bg-red-100 text-red-800 border-red-200"
+                            : ""
+                        }
                         >
                           {ev.event_type}
                       </Badge>

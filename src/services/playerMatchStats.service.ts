@@ -11,6 +11,17 @@ export type PlayerMatchStat = {
   rebounds: number | null
   assists: number | null
   fouls: number | null
+  steals: number | null
+  turnovers: number | null
+  blocks: number | null
+
+  fg2_made: number | null
+  fg2_attempted: number | null
+  fg3_made: number | null
+  fg3_attempted: number | null
+  ft_made: number | null
+  ft_attempted: number | null
+  plus_minus: number | null
 
   created_at: string
 }
@@ -49,17 +60,22 @@ export async function listStatsByPlayerWithEvents(playerId: string) {
   const { data, error } = await supabase
     .from("player_match_stats")
     .select(`
-      stat_id,
-      minutes_played,
-      points,
-      rebounds,
-      assists,
-      fouls,
-      event:events (
-        event_id,
-        title,
-        start_at
-      )
+        stat_id,
+        minutes_played,
+        points,
+        rebounds,
+        assists,
+        steals,
+        turnovers,
+        fouls,
+        fg2_made,
+        fg2_attempted,
+        fg3_made,
+        fg3_attempted,
+        ft_made,
+        ft_attempted,
+        plus_minus,
+        event:events (event_id,title,start_at)
     `)
     .eq("player_id", playerId)
 

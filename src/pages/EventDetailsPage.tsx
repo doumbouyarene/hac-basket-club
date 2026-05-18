@@ -189,54 +189,104 @@ export function EventDetailsPage() {
                 </div>
             </div>
             
-            <div className="space-y-4">
+           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Stats par joueur</h2>
 
-            <table className="w-full text-sm border">
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm border">
                 <thead>
-                <tr className="border-b bg-muted">
+                    <tr className="border-b bg-muted">
                     <th className="p-2 text-left">Joueur</th>
                     <th className="p-2 text-center">Min</th>
                     <th className="p-2 text-center">Pts</th>
                     <th className="p-2 text-center">Reb</th>
                     <th className="p-2 text-center">Ast</th>
+                    <th className="p-2 text-center">Int</th>
+                    <th className="p-2 text-center">Blk</th> 
+                    <th className="p-2 text-center">BP</th>
                     <th className="p-2 text-center">Fautes</th>
-                </tr>
+                    <th className="p-2 text-center">2pts M/T</th>
+                    <th className="p-2 text-center">3pts M/T</th>
+                    <th className="p-2 text-center">LF M/T</th>
+                    <th className="p-2 text-center">+/-</th>
+                    </tr>
                 </thead>
 
                 <tbody>
-                {players.map((p) => {
+                    {players.map((p) => {
                     const stat = statFor(p.player_id)
 
                     return (
-                    <tr key={p.player_id} className="border-b">
+                        <tr key={p.player_id} className="border-b">
                         <td className="p-2">
-                        {p.last_name} {p.first_name}
+                            {p.last_name} {p.first_name}
                         </td>
 
-                        {(["minutes_played", "points", "rebounds", "assists", "fouls"] as const).map(
-                        (field) => (
+                        {(["minutes_played", "points", "rebounds", "assists", "steals", "turnovers", "fouls", "blocks"] as const).map(
+                            (field) => (
                             <td key={field} className="p-2 text-center">
-                            <input
+                                <input
                                 type="number"
-                                className="w-16 border rounded px-2 py-1 text-center"
-                                value={
-                                (draftStats[p.player_id]?.[field] ??
-                                    stat?.[field]) ??
-                                ""
-                                }
-                                onChange={(e) =>
-                                updateDraft(p.player_id, field, e.target.value)
-                                }
-                            />
+                                min={0}
+                                className="w-14 border rounded px-1 py-1 text-center"
+                                value={(draftStats[p.player_id]?.[field] ?? stat?.[field]) ?? ""}
+                                onChange={(e) => updateDraft(p.player_id, field, e.target.value)}
+                                />
                             </td>
-                        )
+                            )
                         )}
-                    </tr>
+
+                        {/* 2pts */}
+                        <td className="p-2 text-center">
+                            <div className="flex items-center gap-1">
+                            <input type="number" min={0} className="w-12 border rounded px-1 py-1 text-center"
+                                value={(draftStats[p.player_id]?.fg2_made ?? stat?.fg2_made) ?? ""}
+                                onChange={(e) => updateDraft(p.player_id, "fg2_made", e.target.value)} />
+                            <span className="text-muted-foreground">/</span>
+                            <input type="number" min={0} className="w-12 border rounded px-1 py-1 text-center"
+                                value={(draftStats[p.player_id]?.fg2_attempted ?? stat?.fg2_attempted) ?? ""}
+                                onChange={(e) => updateDraft(p.player_id, "fg2_attempted", e.target.value)} />
+                            </div>
+                        </td>
+
+                        {/* 3pts */}
+                        <td className="p-2 text-center">
+                            <div className="flex items-center gap-1">
+                            <input type="number" min={0} className="w-12 border rounded px-1 py-1 text-center"
+                                value={(draftStats[p.player_id]?.fg3_made ?? stat?.fg3_made) ?? ""}
+                                onChange={(e) => updateDraft(p.player_id, "fg3_made", e.target.value)} />
+                            <span className="text-muted-foreground">/</span>
+                            <input type="number" min={0} className="w-12 border rounded px-1 py-1 text-center"
+                                value={(draftStats[p.player_id]?.fg3_attempted ?? stat?.fg3_attempted) ?? ""}
+                                onChange={(e) => updateDraft(p.player_id, "fg3_attempted", e.target.value)} />
+                            </div>
+                        </td>
+
+                        {/* LF */}
+                        <td className="p-2 text-center">
+                            <div className="flex items-center gap-1">
+                            <input type="number" min={0} className="w-12 border rounded px-1 py-1 text-center"
+                                value={(draftStats[p.player_id]?.ft_made ?? stat?.ft_made) ?? ""}
+                                onChange={(e) => updateDraft(p.player_id, "ft_made", e.target.value)} />
+                            <span className="text-muted-foreground">/</span>
+                            <input type="number" min={0} className="w-12 border rounded px-1 py-1 text-center"
+                                value={(draftStats[p.player_id]?.ft_attempted ?? stat?.ft_attempted) ?? ""}
+                                onChange={(e) => updateDraft(p.player_id, "ft_attempted", e.target.value)} />
+                            </div>
+                        </td>
+
+                        {/* +/- */}
+                        <td className="p-2 text-center">
+                        <input type="number" className="w-14 border rounded px-1 py-1 text-center"
+                            value={(draftStats[p.player_id]?.plus_minus ?? stat?.plus_minus) ?? ""}
+                            onChange={(e) => updateDraft(p.player_id, "plus_minus", e.target.value)} />
+                        </td>
+                        </tr>
                     )
-                })}
+                    })}
                 </tbody>
-            </table>
+                </table>
+            </div>
 
             <Button
                 disabled={savingStats}

@@ -16,6 +16,13 @@ export type PlayerRow = {
   position: string | null
   status: PlayerStatus
   photo_url: string | null
+  archetype: string | null
+  off_rating: number | null
+  def_rating: number | null
+  tec_rating: number | null
+  phy_rating: number | null
+  spd_rating: number | null
+  sta_rating: number | null
   created_at: string
   updated_at: string
 }
@@ -32,7 +39,14 @@ export type PlayerCreate = {
   position?: string | null
   status?: PlayerStatus
   photo_url?: string | null
+  archetype?: string | null
   user_id?: string | null
+  off_rating: number | null
+  def_rating: number | null
+  tec_rating: number | null
+  phy_rating: number | null
+  spd_rating: number | null
+  sta_rating: number | null
 }
 
 export type PlayerUpdate = Partial<Omit<PlayerCreate, "team_id">> & {
@@ -60,7 +74,8 @@ export async function listPlayers(params: {
         neighborhood,
         position,
         status,
-        photo_url
+        photo_url,
+        archetype
         `)
     .order("last_name", { ascending: true })
     .order("first_name", { ascending: true })
@@ -94,11 +109,18 @@ export async function createPlayer(payload: PlayerCreate) {
         position: payload.position ?? null,
         status: payload.status,
         photo_url: payload.photo_url ?? null,
+        archetype: payload.archetype ?? null,
+        off_rating: payload.off_rating ?? null,
+        def_rating: payload.def_rating ?? null,
+        tec_rating: payload.tec_rating ?? null,
+        phy_rating: payload.phy_rating ?? null,
+        spd_rating: payload.spd_rating ?? null,
+        sta_rating: payload.sta_rating ?? null,
     })
 
 
     .select(
-      "player_id, team_id, user_id, first_name, last_name, position, status, photo_url, created_at, updated_at"
+      "player_id, team_id, user_id, first_name, last_name, position, status, photo_url, archetype, off_rating, def_rating, tec_rating, phy_rating, spd_rating, sta_rating, created_at, updated_at"
     )
     .single()
 
@@ -120,12 +142,13 @@ export async function updatePlayer(player_id: string, patch: PlayerUpdate) {
       position: patch.position ?? null,
       status: patch.status,
       photo_url: patch.photo_url ?? null,
+      archetype: patch.archetype ?? null,
       user_id: patch.user_id ?? null,
       updated_at: new Date().toISOString(),
     })
     .eq("player_id", player_id)
     .select(
-      "player_id, team_id, user_id, first_name, last_name, position, status, photo_url, created_at, updated_at"
+      "player_id, team_id, user_id, first_name, last_name, position, status, photo_url, archetype, off_rating, def_rating, tec_rating, phy_rating, spd_rating, sta_rating, created_at, updated_at"
     )
     .single()
 

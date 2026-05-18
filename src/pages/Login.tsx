@@ -81,104 +81,100 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30 flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        {/* En-tête branding minimal */}
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 h-12 w-12 rounded-xl border bg-background flex items-center justify-center">
-            <span className="text-sm font-semibold">CB</span>
+  <div className="min-h-screen flex">
+
+    {/* Panneau gauche — branding */}
+    <div className="hidden md:flex w-1/2 bg-sidebar flex-col items-center justify-center gap-6 p-12">
+      <img
+        src="/logo.jpg"
+        alt="Horoya AC"
+        className="h-28 w-28 rounded-full object-cover ring-4 ring-primary/40"
+      />
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-bold text-white tracking-tight">Horoya AC</h1>
+        <p className="text-sidebar-foreground/50 text-sm">Section Basketball — Espace Membres</p>
+      </div>
+      <div className="mt-8 border-t border-sidebar-border w-32" />
+      <p className="text-xs text-sidebar-foreground/30 text-center max-w-xs leading-relaxed">
+        Plateforme de gestion interne réservée aux membres du club.
+      </p>
+    </div>
+
+    {/* Panneau droit — formulaire */}
+    <div className="flex-1 flex items-center justify-center p-8 bg-background">
+      <div className="w-full max-w-sm space-y-8">
+
+        {/* Logo mobile uniquement */}
+        <div className="flex md:hidden justify-center">
+          <img src="/logo.png" alt="Horoya AC" className="h-16 w-16 rounded-full object-cover" />
+        </div>
+
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold tracking-tight">Connexion</h2>
+          <p className="text-sm text-muted-foreground">Accès réservé aux membres du club.</p>
+        </div>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertTitle>Erreur</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {info && (
+          <Alert>
+            <AlertTitle>Information</AlertTitle>
+            <AlertDescription>{info}</AlertDescription>
+          </Alert>
+        )}
+
+        <form onSubmit={onSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="login">Email</Label>
+            <Input
+              id="login"
+              type="email"
+              placeholder="email@exemple.com"
+              autoComplete="username"
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
+              disabled={loading}
+            />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">Club Manager</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Connexion sécurisée
-          </p>
-        </div>
 
-        <Card className="shadow-sm">
-          <CardHeader className="space-y-1">
-            <CardTitle>Se connecter</CardTitle>
-            <CardDescription>
-              Utilise ton email et ton mot de passe.
-            </CardDescription>
-          </CardHeader>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Mot de passe</Label>
+              <button
+                type="button"
+                onClick={onForgotPassword}
+                className="text-xs text-primary hover:underline disabled:opacity-50"
+                disabled={loading}
+              >
+                Mot de passe oublié ?
+              </button>
+            </div>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+            />
+          </div>
 
-          <CardContent>
-            {(error || info) && (
-              <div className="mb-4">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertTitle>Erreur</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
+          <Button type="submit" className="w-full" disabled={!canSubmit}>
+            {loading ? "Connexion en cours..." : "Se connecter"}
+          </Button>
+        </form>
 
-                {info && (
-                  <Alert>
-                    <AlertTitle>Information</AlertTitle>
-                    <AlertDescription>{info}</AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            )}
-
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="login">Login</Label>
-                <Input
-                  id="login"
-                  type="email"
-                  placeholder="email@exemple.com"
-                  autoComplete="username"
-                  value={login}
-                  onChange={(e) => setLogin(e.target.value)}
-                  disabled={loading}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Le login correspond à ton email.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Mot de passe</Label>
-                  <button
-                    type="button"
-                    onClick={onForgotPassword}
-                    className="text-xs text-primary hover:underline disabled:opacity-50"
-                    disabled={loading}
-                  >
-                    Mot de passe oublié ?
-                  </button>
-                </div>
-
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-
-              <Button type="submit" className="w-full" disabled={!canSubmit}>
-                {loading ? "Connexion..." : "Se connecter"}
-              </Button>
-
-              <Separator />
-
-              <div className="text-xs text-muted-foreground leading-relaxed">
-                En cas de problème d’accès, contacte l’administrateur de l’application.
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-
-        <div className="mt-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} Club Manager
-        </div>
+        <p className="text-xs text-muted-foreground text-center">
+          Problème d'accès ? Contacte l'administrateur.
+        </p>
       </div>
     </div>
-  )
+
+  </div>
+)
 }

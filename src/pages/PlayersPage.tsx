@@ -28,7 +28,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
@@ -71,7 +73,7 @@ function statusBadge(status: PlayerStatus) {
     case "INJURED":
       return <Badge variant="outline">INJURED</Badge>
     case "SUSPENDED":
-      return <Badge variant="destructive">SUSPENDED</Badge>
+      return <Badge variant="destructive">INACTIVE</Badge>
   }
 }
 
@@ -101,6 +103,14 @@ type FormState = {
   position: string
   status: PlayerStatus
   photo_url: string
+  archetype: string
+
+  off_rating: number | ""
+  def_rating: number | ""
+  tec_rating: number | ""
+  phy_rating: number | ""
+  spd_rating: number | ""
+  sta_rating: number | ""
 
   // ✅ PROFIL JOUEUR
   birth_date: string
@@ -124,6 +134,14 @@ const emptyForm: FormState = {
   height_cm: "",
   weight_kg: "",
   neighborhood: "",
+  archetype: "",
+
+  off_rating: "",
+  def_rating: "",
+  tec_rating: "",
+  phy_rating: "",
+  spd_rating: "",
+  sta_rating: "",
 
 }
 
@@ -209,12 +227,19 @@ export function PlayersPage() {
       position: p.position ?? "",
       status: p.status,
       photo_url: p.photo_url ?? "",
+      archetype: p.archetype ?? "",
 
       birth_date: p.birth_date ?? "",
       birth_place: p.birth_place ?? "",
       height_cm: p.height_cm ?? "",
       weight_kg: p.weight_kg ?? "",
       neighborhood: p.neighborhood ?? "",
+      off_rating: p.off_rating ?? "",
+      def_rating: p.def_rating ?? "",
+      tec_rating: p.tec_rating ?? "",
+      phy_rating: p.phy_rating ?? "",
+      spd_rating: p.spd_rating ?? "",
+      sta_rating: p.sta_rating ?? "",
     })
     setFormError(null)
     setOpen(true)
@@ -239,11 +264,18 @@ export function PlayersPage() {
           position: normalize(form.position) || null,
           status: form.status,
           photo_url: normalize(form.photo_url) || null,
+          archetype: form.archetype || null,
           birth_date: form.birth_date || null,
           birth_place: form.birth_place || null,
           height_cm: form.height_cm === "" ? null : form.height_cm,
           weight_kg: form.weight_kg === "" ? null : form.weight_kg,
           neighborhood: form.neighborhood || null,
+          off_rating: form.off_rating === "" ? null : form.off_rating,
+          def_rating: form.def_rating === "" ? null : form.def_rating,
+          tec_rating: form.tec_rating === "" ? null : form.tec_rating,
+          phy_rating: form.phy_rating === "" ? null : form.phy_rating,
+          spd_rating: form.spd_rating === "" ? null : form.spd_rating,
+          sta_rating: form.sta_rating === "" ? null : form.sta_rating,
         })
       } else {
         await actions.edit(editing.player_id, {
@@ -252,11 +284,18 @@ export function PlayersPage() {
           position: normalize(form.position) || null,
           status: form.status,
           photo_url: normalize(form.photo_url) || null,
+          archetype: form.archetype || null,
           birth_date: form.birth_date || null,
           birth_place: form.birth_place || null,
           height_cm: form.height_cm === "" ? null : form.height_cm,
           weight_kg: form.weight_kg === "" ? null : form.weight_kg,
           neighborhood: form.neighborhood || null,
+          off_rating: form.off_rating === "" ? null : form.off_rating,
+          def_rating: form.def_rating === "" ? null : form.def_rating,
+          tec_rating: form.tec_rating === "" ? null : form.tec_rating,
+          phy_rating: form.phy_rating === "" ? null : form.phy_rating,
+          spd_rating: form.spd_rating === "" ? null : form.spd_rating,
+          sta_rating: form.sta_rating === "" ? null : form.sta_rating,
         })
       }
       setOpen(false)
@@ -281,7 +320,6 @@ export function PlayersPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Joueurs</h2>
           <p className="text-sm text-muted-foreground">
             Gestion de l’effectif par équipe
           </p>
@@ -471,6 +509,85 @@ export function PlayersPage() {
                 </div>
               </div>
 
+              {/* Archetype */}
+              <div className="space-y-2">
+                <Label>Archétype</Label>
+                <Select
+                  value={form.archetype}
+                  onValueChange={(v) => setForm((p) => ({ ...p, archetype: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir un archétype" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Meneur (PG)</SelectLabel>
+                      <SelectItem value="2-Way 3PT Slasher">2-Way 3PT Slasher</SelectItem>
+                      <SelectItem value="Iso Sniper">Iso Sniper</SelectItem>
+                      <SelectItem value="Inside-Out Playmaker">Inside-Out Playmaker</SelectItem>
+                      <SelectItem value="Floor General / Playmaker">Floor General / Playmaker</SelectItem>
+                      <SelectItem value="Slasher Scoring Guard">Slasher Scoring Guard</SelectItem>
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel>Arrière (SG)</SelectLabel>
+                      <SelectItem value="2-Way Mid-Range Slasher">2-Way Mid-Range Slasher</SelectItem>
+                      <SelectItem value="2-Way Shot Creator">2-Way Shot Creator</SelectItem>
+                      <SelectItem value="Sharpshooter">Sharpshooter</SelectItem>
+                      <SelectItem value="Walking Bucket">Walking Bucket</SelectItem>
+                      <SelectItem value="3-Level Scorer">3-Level Scorer</SelectItem>
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel>Ailier (SF)</SelectLabel>
+                      <SelectItem value="2-Way Wing">2-Way Wing</SelectItem>
+                      <SelectItem value="Perimeter Lockdown">Perimeter Lockdown</SelectItem>
+                      <SelectItem value="3 & D Wing">3 & D Wing</SelectItem>
+                      <SelectItem value="Inside-Out Scorer">Inside-Out Scorer</SelectItem>
+                      <SelectItem value="Slashing Wing">Slashing Wing</SelectItem>
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel>Ailier Fort (PF)</SelectLabel>
+                      <SelectItem value="Stretch Four">Stretch Four</SelectItem>
+                      <SelectItem value="2-Way Slasher Big">2-Way Slasher Big</SelectItem>
+                      <SelectItem value="Glass Cleaner Stretch">Glass Cleaner Stretch</SelectItem>
+                      <SelectItem value="Post Scorer / Hybrid Big">Post Scorer / Hybrid Big</SelectItem>
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel>Pivot (C)</SelectLabel>
+                      <SelectItem value="Paint Beast">Paint Beast</SelectItem>
+                      <SelectItem value="Rim Protector">Rim Protector</SelectItem>
+                      <SelectItem value="Stretch Five">Stretch Five</SelectItem>
+                      <SelectItem value="Glass Cleaner">Glass Cleaner</SelectItem>
+                      <SelectItem value="Inside Presence">Inside Presence</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Aptitudes */}
+              <div className="pt-4 border-t space-y-3">
+                <h4 className="text-sm font-semibold">Aptitudes (0 – 100)</h4>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {(["off_rating", "def_rating", "tec_rating", "phy_rating", "spd_rating", "sta_rating"] as const).map((field) => (
+                    <div key={field} className="space-y-1">
+                      <Label>{field.replace("_rating", "").toUpperCase()}</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        placeholder="0–100"
+                        value={form[field]}
+                        onChange={(e) =>
+                          setForm((p) => ({
+                            ...p,
+                            [field]: e.target.value === "" ? "" : Number(e.target.value),
+                          }))
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Photo */}
               <div className="space-y-2">
                 <Label>Photo URL (optionnel)</Label>
@@ -549,7 +666,7 @@ export function PlayersPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Nom</TableHead>
-              <TableHead>Poste</TableHead>
+              <TableHead>Poste / Archétype</TableHead>
               <TableHead>Profil</TableHead>
               <TableHead>Statut</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -581,7 +698,12 @@ export function PlayersPage() {
                   <TableCell className="font-medium">
                     {p.last_name} {p.first_name}
                   </TableCell>
-                  <TableCell>{p.position ?? "—"}</TableCell>
+                  <TableCell>
+                    <div>{p.position ?? "—"}</div>
+                    {p.archetype && (
+                      <div className="text-xs text-muted-foreground">{p.archetype}</div>
+                    )}
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground leading-tight">
                   <div>
                     {formatDateFR(p.birth_date)} • {formatAge(p.birth_date)}
