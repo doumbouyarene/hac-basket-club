@@ -21,6 +21,16 @@ import {
   PolarRadiusAxis,
 } from "recharts"
 
+import { Paintbrush } from "lucide-react"
+import { Slider } from "@/components/ui/slider"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { updatePlayer } from "@/services/players.service"
+
 function avg(values: number[]) {
   if (values.length === 0) return 0
   return values.reduce((a, b) => a + b, 0) / values.length
@@ -33,6 +43,16 @@ export function PlayerDetailsPage() {
   const [stats, setStats] = useState<PlayerMatchStat[]>([])
   const [matchStats, setMatchStats] = useState<any[]>([])
   const [attendance, setAttendance] = useState<any[]>([])
+  const [aptitudesOpen, setAptitudesOpen] = useState(false)
+  const [aptDraft, setAptDraft] = useState({
+    off_rating: 0,
+    def_rating: 0,
+    tec_rating: 0,
+    phy_rating: 0,
+    spd_rating: 0,
+    sta_rating: 0,
+  })
+  const [savingApt, setSavingApt] = useState(false)
 
 
 const n = stats.length
@@ -123,6 +143,33 @@ const sum = (field: keyof PlayerMatchStat) =>
       { stat: "SPD", value: player.spd_rating ?? 0 },
     ]
 
+    function openAptitudes() {
+        if (!player) {
+          return <div className="p-6">Chargement du joueur…</div>
+      }
+      setAptDraft({
+        off_rating: player.off_rating ?? 50,
+        def_rating: player.def_rating ?? 50,
+        tec_rating: player.tec_rating ?? 50,
+        phy_rating: player.phy_rating ?? 50,
+        spd_rating: player.spd_rating ?? 50,
+        sta_rating: player.sta_rating ?? 50,
+      })
+      setAptitudesOpen(true)
+    }
+
+    async function saveAptitudes() {
+      if (!playerId) return
+      setSavingApt(true)
+      try {
+        const updated = await updatePlayer(playerId, aptDraft)
+        setPlayer(updated)
+        setAptitudesOpen(false)
+      } finally {
+        setSavingApt(false)
+      }
+    }
+
   return (
   <div className="p-6 space-y-8">
     <h1 className="text-2xl font-semibold">Fiche joueur</h1>
@@ -145,12 +192,64 @@ const sum = (field: keyof PlayerMatchStat) =>
         )}
       </div>
 
-      <RadarChart width={300} height={300} data={radarData}>
-        <PolarGrid />
-        <PolarAngleAxis dataKey="stat" />
-        <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} />
-        <Radar name="Profil" dataKey="value" stroke="#2563eb" fill="#2563eb" fillOpacity={0.4} />
-      </RadarChart>
+      <div className="relative">
+        {/* Bouton pinceau */}
+        <button
+          onClick={openAptitudes}
+          className="absolute top-0 right-0 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition"
+          title="Modifier les aptitudes"
+        >
+          <Paintbrush className="h-4 w-4" />
+        </button>
+
+        <RadarChart width={300} height={300} data={radarData}>
+          <PolarGrid />
+          <PolarAngleAxis dataKey="stat" />
+          <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} />
+          <Radar name="Profil" dataKey="value" stroke="#2563eb" fill="#2563eb" fillOpacity={0.4} />
+        </RadarChart>
+
+        {/* Dialog aptitudes */}
+        <Dialog open={aptitudesOpen} onOpenChange={setAptitudesOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Modifier les aptitudes</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-5 py-2">
+              {([
+                { key: "off_rating", label: "OFF — Attaque" },
+                { key: "def_rating", label: "DEF — Défense" },
+                { key: "tec_rating", label: "TEC — Technique" },
+                { key: "phy_rating", label: "PHY — Physique" },
+                { key: "spd_rating", label: "SPD — Vitesse" },
+                { key: "sta_rating", label: "STA — Endurance" },
+              ] as const).map(({ key, label }) => (
+                <div key={key} className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">{label}</span>
+                    <span className="text-muted-foreground w-8 text-right">{aptDraft[key]}</span>
+                  </div>
+                  <Slider
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={[aptDraft[key]]}
+                    onValueChange={([v]) => setAptDraft(prev => ({ ...prev, [key]: v }))}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setAptitudesOpen(false)}>Annuler</Button>
+              <Button onClick={saveAptitudes} disabled={savingApt}>
+                {savingApt ? "Enregistrement..." : "Enregistrer"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
 
     {/* ───── SECTION STATISTIQUES ───── */}

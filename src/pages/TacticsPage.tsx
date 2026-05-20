@@ -10,10 +10,21 @@ import { useRole } from "../app/useRole"
 import { Plus } from "lucide-react"
 
 
-function getFacebookEmbedUrl(url: string) {
-  return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(
-    url
-  )}&show_text=false`
+function getEmbedUrl(url: string): string {
+  // YouTube — format watch?v=
+  const ytWatch = url.match(/youtube\.com\/watch\?v=([\w-]+)/)
+  if (ytWatch) return `https://www.youtube.com/embed/${ytWatch[1]}?autoplay=1`
+
+  // YouTube — format youtu.be/
+  const ytShort = url.match(/youtu\.be\/([\w-]+)/)
+  if (ytShort) return `https://www.youtube.com/embed/${ytShort[1]}?autoplay=1`
+
+  // YouTube Shorts
+  const ytShorts = url.match(/youtube\.com\/shorts\/([\w-]+)/)
+  if (ytShorts) return `https://www.youtube.com/embed/${ytShorts[1]}?autoplay=1`
+
+  // Facebook (comportement existant)
+  return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false`
 }
 
 function formatDateFR(date: string) {
@@ -199,7 +210,7 @@ const filteredItems =
 
             {/* Vidéo Facebook fullscreen */}
             <iframe
-            src={getFacebookEmbedUrl(activeVideoUrl)}
+            src={getEmbedUrl(activeVideoUrl)}
             className="w-full h-full"
             style={{ border: "none" }}
             allow="autoplay; encrypted-media; picture-in-picture"
@@ -228,10 +239,10 @@ const filteredItems =
 
             {/* Lien Facebook */}
             <div className="space-y-1">
-                <label className="text-sm font-medium">Lien Facebook</label>
+                <label className="text-sm font-medium">Lien video</label>
                 <input
                 className="w-full rounded border px-3 py-2"
-                placeholder="https://www.facebook.com/..."
+                placeholder="https://www.youtube.com/..."
                 value={form.facebook_url}
                 onChange={(e) =>
                     setForm((f) => ({ ...f, facebook_url: e.target.value }))
