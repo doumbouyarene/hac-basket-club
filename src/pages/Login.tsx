@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
+import { useAuth } from "@/app/AuthProvider"
 
 function isValidEmail(value: string) {
   // validation simple et suffisante pour un MVP
@@ -22,6 +23,13 @@ export function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
+  const { session, isLoading } = useAuth()
+
+  useEffect(() => {
+    if (!isLoading && session) {
+      navigate("/")
+    }
+  }, [isLoading, session, navigate])
 
   const canSubmit = useMemo(() => {
     return isValidEmail(login) && password.length >= 6 && !loading
@@ -53,7 +61,7 @@ export function Login() {
       return
     }
 
-    navigate("/dashboard")
+    navigate("/")
   }
 
   async function onForgotPassword() {
@@ -78,6 +86,10 @@ export function Login() {
     }
 
     setInfo("Un email de réinitialisation a été envoyé (si le compte existe).")
+  }
+
+  if (isLoading) {
+    return <div className="p-6">Chargement...</div>
   }
 
   return (

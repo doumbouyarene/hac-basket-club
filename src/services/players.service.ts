@@ -129,27 +129,28 @@ export async function createPlayer(payload: PlayerCreate) {
 }
 
 export async function updatePlayer(player_id: string, patch: PlayerUpdate) {
+  const updateData: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+  }
+
+  const fields: (keyof PlayerUpdate)[] = [
+    "first_name", "last_name", "birth_date", "birth_place",
+    "height_cm", "weight_kg", "neighborhood", "position",
+    "status", "photo_url", "archetype", "user_id",
+    "off_rating", "def_rating", "tec_rating", "phy_rating", "spd_rating", "sta_rating",
+  ]
+
+  for (const field of fields) {
+    if (field in patch) {
+      updateData[field] = (patch as any)[field] ?? null
+    }
+  }
+
   const { data, error } = await supabase
     .from("players")
-    .update({
-      first_name: patch.first_name,
-      last_name: patch.last_name,
-      birth_date: patch.birth_date ?? null,
-      birth_place: patch.birth_place ?? null,
-      height_cm: patch.height_cm ?? null,
-      weight_kg: patch.weight_kg ?? null,
-      neighborhood: patch.neighborhood ?? null,
-      position: patch.position ?? null,
-      status: patch.status,
-      photo_url: patch.photo_url ?? null,
-      archetype: patch.archetype ?? null,
-      user_id: patch.user_id ?? null,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq("player_id", player_id)
-    .select(
-      "player_id, team_id, user_id, first_name, last_name, position, status, photo_url, archetype, off_rating, def_rating, tec_rating, phy_rating, spd_rating, sta_rating, created_at, updated_at"
-    )
+    .select("player_id, team_id, user_id, first_name, last_name, birth_date, birth_place, height_cm, weight_kg, neighborhood, position, status, photo_url, archetype, off_rating, def_rating, tec_rating, phy_rating, spd_rating, sta_rating, created_at, updated_at")
     .single()
 
   if (error) throw error

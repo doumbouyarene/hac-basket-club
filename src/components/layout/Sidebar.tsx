@@ -33,7 +33,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           />
           <div>
             <div className="text-sm font-bold text-white leading-tight">Horoya AC</div>
-            <div className="text-xs text-sidebar-foreground/50 leading-tight">Athletic Club</div>
+            <div className="text-xs text-sidebar-foreground/50 leading-tight">Section Basketball</div>
           </div>
         </div>
 

@@ -511,6 +511,11 @@ export function EventsPage() {
                         >
                           {ev.event_type}
                       </Badge>
+                      {ev.event_type === "MATCH" && ev.opponent_name && (
+                        <div className="text-xs text-muted-foreground font-light mt-0.5">
+                          vs {ev.opponent_name}
+                        </div>
+                      )}
                   </TableCell>
                   <TableCell>{ev.title}</TableCell>
                   <TableCell>{formatDateFR(ev.start_at)}</TableCell>
