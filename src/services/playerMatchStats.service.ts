@@ -99,20 +99,15 @@ export async function listStatsByPlayerWithEvents(playerId: string) {
   return rows
 }
 
-export async function listPlayersByEventAttendance(eventId: string) {
+export async function listStatsByPlayers(playerIds: string[]) {
+  if (playerIds.length === 0) return []
+
   const { data, error } = await supabase
-    .from("attendance")
-    .select(`
-      player_id,
-      status,
-      players:player_id (*)
-    `)
-    .eq("event_id", eventId)
-    .in("status", ["PRESENT", "LATE"])
+    .from("player_match_stats")
+    .select("*")
+    .in("player_id", playerIds)
 
   if (error) throw error
 
-  return (data ?? [])
-    .map((row: any) => row.players)
-    .filter(Boolean)
+  return (data ?? []) as PlayerMatchStat[]
 }

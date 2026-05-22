@@ -1,3 +1,5 @@
+import { PlayerRow } from "@/services/players.service"
+
 export type Role = 'ADMIN' | 'COACH' | 'PLAYER'
 
 export type Team = {
@@ -90,4 +92,22 @@ export type DashboardKpis = {
   topBlocks: TopPlayer | null
   topSteals: TopPlayer | null
   lowAttendancePlayers: LowAttendancePlayer[]
+}
+
+export type LineupSlot = "PG" | "SG" | "SF" | "PF" | "C"
+
+export type RecommendedLineupPlayer = {
+  slot: LineupSlot
+  player: PlayerRow
+  score: number
+  reasons: string[]
+  averages: PlayerAverages
+}
+
+export type PlayerAverages = {
+  points: number
+  rebounds: number
+  assists: number
+  steals: number
+  blocks: number
 }

@@ -185,3 +185,21 @@ export async function listPlayersByTeam(teamId: string) {
   if (error) throw error
   return data ?? []
 }
+
+export async function listPlayersByEventAttendance(eventId: string) {
+  const { data, error } = await supabase
+    .from("attendance")
+    .select(`
+      player_id,
+      status,
+      players:player_id (*)
+    `)
+    .eq("event_id", eventId)
+    .in("status", ["PRESENT", "LATE"])
+
+  if (error) throw error
+
+  return (data ?? [])
+    .map((row: any) => row.players)
+    .filter(Boolean)
+}

@@ -2,9 +2,13 @@ import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
-import { listPlayersByEventAttendance, listStatsByEvent, PlayerMatchStat, upsertPlayerStat } from "@/services/playerMatchStats.service"
+import { listStatsByEvent, PlayerMatchStat, upsertPlayerStat } from "@/services/playerMatchStats.service"
 import { PlayerRow, listPlayersByTeam } from "@/services/players.service"
 import { Trophy, Zap } from "lucide-react"
+import { recommendStartingFive } from "@/services/lineup.service"
+import { listStatsByPlayers } from "@/services/playerMatchStats.service"
+import { listPlayersByEventAttendance } from "@/services/players.service"
+import { RecommendedLineupPlayer } from "@/types/db"
 
 export function EventDetailsPage() {
   const { eventId } = useParams<{ eventId: string }>()
@@ -12,7 +16,7 @@ export function EventDetailsPage() {
   const [event, setEvent] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<"DETAILS" | "STATS">("DETAILS")
+  const [activeTab, setActiveTab] = useState<"DETAILS" | "COMPOSITION" | "STATS">("DETAILS")
   const [homeScore, setHomeScore] = useState<number | "">("")
   const [awayScore, setAwayScore] = useState<number | "">("")
   const [savingScore, setSavingScore] = useState(false)
@@ -23,6 +27,7 @@ export function EventDetailsPage() {
   const [mvpPlayerId, setMvpPlayerId] = useState<string>("")
   const [impactPlayerId, setImpactPlayerId] = useState<string>("")
   const [savingAwards, setSavingAwards] = useState(false)
+  const [recommendedLineup, setRecommendedLineup] = useState<RecommendedLineupPlayer[]>([])
 
     function AwardBadges({
         playerId,
@@ -117,6 +122,16 @@ export function EventDetailsPage() {
         if (data.away_score !== null) setAwayScore(data.away_score)
         
         const p = await listPlayersByEventAttendance(data.event_id)
+        const allStats = await listStatsByPlayers(p.map((player) => player.player_id))
+
+        const statsByPlayer = allStats.reduce<Record<string, PlayerMatchStat[]>>((acc, stat) => {
+        acc[stat.player_id] = acc[stat.player_id] ?? []
+        acc[stat.player_id].push(stat)
+        return acc
+        }, {})
+
+        setRecommendedLineup(recommendStartingFive(p, statsByPlayer))
+
         const s = await listStatsByEvent(data.event_id)
         setPlayers(p)
         setStats(s)
@@ -169,6 +184,18 @@ export function EventDetailsPage() {
             >
             Stats du match
             </button>
+
+            <button
+            className={`pb-2 text-sm font-medium ${
+                activeTab === "COMPOSITION"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground"
+            }`}
+            onClick={() => setActiveTab("COMPOSITION")}
+            >
+            Composition
+            </button>
+
         </nav>
         </div>
         {activeTab === "DETAILS" && (
@@ -211,6 +238,7 @@ export function EventDetailsPage() {
             </div>
         </div>
         )}
+
         {activeTab === "STATS" && (
         <div className="space-y-6">
             <div className="space-y-4">
@@ -481,6 +509,74 @@ export function EventDetailsPage() {
             </Button>
             </div>
 
+        </div>
+        )}
+
+        {activeTab === "COMPOSITION" && (
+        <div className="space-y-4">
+            <div>
+            <h2 className="text-lg font-semibold">5 majeur recommandé</h2>
+            <p className="text-sm text-muted-foreground">
+                Proposition basée sur les joueurs convoqués, les aptitudes, la forme récente et le poste.
+            </p>
+            </div>
+
+            {recommendedLineup.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+                Aucun joueur disponible pour générer une composition.
+            </div>
+            ) : (
+            <div className="grid gap-4 xl:grid-cols-5 md:grid-cols-2">
+                {recommendedLineup.map((item) => (
+                <div key={item.slot} className="rounded-md border bg-background p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                        {item.slot}
+                    </span>
+                    <span className="text-sm font-bold">
+                        {item.score}
+                    </span>
+                    </div>
+
+                    <div>
+                    <div className="font-medium leading-tight">
+                        {item.player.last_name} {item.player.first_name}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                        {item.player.position ?? "Poste non renseigné"}
+                    </div>
+                    {item.player.archetype && (
+                        <div className="text-xs text-muted-foreground">
+                        {item.player.archetype}
+                        </div>
+                    )}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 pt-2">
+                        {[
+                            { label: "Pts", value: item.averages.points },
+                            { label: "Reb", value: item.averages.rebounds },
+                            { label: "Ast", value: item.averages.assists },
+                            { label: "Int", value: item.averages.steals },
+                            { label: "Blk", value: item.averages.blocks },
+                        ].map((stat) => (
+                            <div
+                            key={stat.label}
+                            className="rounded-md bg-muted/60 px-2 py-1.5 text-center"
+                            >
+                            <div className="text-sm font-semibold leading-none">
+                                {stat.value}
+                            </div>
+                            <div className="mt-1 text-[11px] leading-none text-muted-foreground">
+                                {stat.label}
+                            </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                ))}
+            </div>
+            )}
         </div>
         )}
     </div>
