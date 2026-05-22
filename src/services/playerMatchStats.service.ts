@@ -75,7 +75,13 @@ export async function listStatsByPlayerWithEvents(playerId: string) {
         ft_made,
         ft_attempted,
         plus_minus,
-        event:events (event_id,title,start_at)
+        event:events (
+              event_id,
+              title,
+              start_at,
+              mvp_player_id,
+              impact_player_id
+            )
     `)
     .eq("player_id", playerId)
 
@@ -91,4 +97,22 @@ export async function listStatsByPlayerWithEvents(playerId: string) {
   })
 
   return rows
+}
+
+export async function listPlayersByEventAttendance(eventId: string) {
+  const { data, error } = await supabase
+    .from("attendance")
+    .select(`
+      player_id,
+      status,
+      players:player_id (*)
+    `)
+    .eq("event_id", eventId)
+    .in("status", ["PRESENT", "LATE"])
+
+  if (error) throw error
+
+  return (data ?? [])
+    .map((row: any) => row.players)
+    .filter(Boolean)
 }

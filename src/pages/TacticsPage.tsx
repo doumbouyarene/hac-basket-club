@@ -7,24 +7,51 @@ import {
   type GameTactic,
 } from "@/services/gameTactics.service"
 import { useRole } from "../app/useRole"
-import { Plus } from "lucide-react"
+import { Plus, Play, Trash, X, ExternalLink } from "lucide-react"
 
 
-function getEmbedUrl(url: string): string {
-  // YouTube — format watch?v=
-  const ytWatch = url.match(/youtube\.com\/watch\?v=([\w-]+)/)
-  if (ytWatch) return `https://www.youtube.com/embed/${ytWatch[1]}?autoplay=1`
+function getEmbedUrl(rawUrl: string): string | null {
+  try {
+    const url = new URL(rawUrl)
 
-  // YouTube — format youtu.be/
-  const ytShort = url.match(/youtu\.be\/([\w-]+)/)
-  if (ytShort) return `https://www.youtube.com/embed/${ytShort[1]}?autoplay=1`
+    if (url.hostname.includes("youtube.com")) {
+      if (url.pathname === "/watch") {
+        const videoId = url.searchParams.get("v")
+        return videoId ? `https://www.youtube.com/embed/${videoId}` : null
+      }
 
-  // YouTube Shorts
-  const ytShorts = url.match(/youtube\.com\/shorts\/([\w-]+)/)
-  if (ytShorts) return `https://www.youtube.com/embed/${ytShorts[1]}?autoplay=1`
+      if (url.pathname.startsWith("/shorts/")) {
+        const videoId = url.pathname.split("/")[2]
+        return videoId ? `https://www.youtube.com/embed/${videoId}` : null
+      }
 
-  // Facebook (comportement existant)
-  return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false`
+      if (url.pathname.startsWith("/embed/")) {
+        return rawUrl
+      }
+    }
+
+    if (url.hostname.includes("youtu.be")) {
+      const videoId = url.pathname.replace("/", "")
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : null
+    }
+
+    if (url.hostname.includes("facebook.com") || url.hostname.includes("fb.watch")) {
+      return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(rawUrl)}&show_text=false&width=900`
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
+function isValidUrl(value: string) {
+  try {
+    new URL(value)
+    return true
+  } catch {
+    return false
+  }
 }
 
 function formatDateFR(date: string) {
@@ -162,14 +189,36 @@ const filteredItems =
             </div>
 
             <Button
-                size="sm"
-                onClick={() => {
-                setActiveVideoUrl(t.facebook_url)
-                setOpenVideo(true)
-                }}
+              size="sm"
+              onClick={() => {
+                const embedUrl = getEmbedUrl(t.facebook_url)
+
+                if (embedUrl) {
+                  setActiveVideoUrl(t.facebook_url)
+                  setOpenVideo(true)
+                } else {
+                  window.open(t.facebook_url, "_blank", "noopener,noreferrer")
+                }
+              }}
             >
-                ▶ Lire
+                <Play /> Lire
             </Button>
+            <Button
+                size="sm"
+                variant="outline"
+                title="Ouvrir le lien"
+                onClick={() => {
+                  if (!isValidUrl(t.facebook_url)) {
+                    alert("Lien vidéo invalide")
+                    return
+                  }
+
+                  window.open(t.facebook_url, "_blank", "noopener,noreferrer")
+                }}
+              >
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+
             {isStaff && (
               <Button
                 variant="destructive"
@@ -182,7 +231,7 @@ const filteredItems =
                     await reloadTactics()
                 }}
               >
-                🗑️
+                <Trash /> 
               </Button>
             )}
             </div>
@@ -201,21 +250,24 @@ const filteredItems =
         <div className="fixed inset-0 z-50 bg-black">
             {/* Bouton fermer */}
             <button
-            className="absolute top-4 right-4 z-50 text-white text-2xl"
-            onClick={() => setActiveVideoUrl(null)}
-            aria-label="Fermer la vidéo"
-            >
-            ✕
+                className="absolute top-4 right-4 z-50 text-white text-2xl"
+                onClick={() => {
+                  setActiveVideoUrl(null)
+                  setOpenVideo(false)
+                }}
+                aria-label="Fermer la vidéo"
+              >
+            <X />
             </button>
 
             {/* Vidéo Facebook fullscreen */}
             <iframe
-            src={getEmbedUrl(activeVideoUrl)}
-            className="w-full h-full"
-            style={{ border: "none" }}
-            allow="autoplay; encrypted-media; picture-in-picture"
-            allowFullScreen
-            title="Vidéo tactique"
+              src={getEmbedUrl(activeVideoUrl) ?? activeVideoUrl}
+              className="w-full h-full"
+              style={{ border: "none" }}
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+              title="Vidéo tactique"
             />
         </div>
         )}

@@ -9,6 +9,7 @@ import { AttendancePage } from "@/pages/AttendancePage"
 import { PlayerDetailsPage } from "@/pages/PlayerDetailsPage"
 import { EventDetailsPage } from "@/pages/EventDetailsPage"
 import { ProtectedRoute } from "@/app/ProtectedRoute"
+import { MyPlayerPage } from "@/pages/MyPlayerPage"
 
 
 export default function App() {
@@ -26,8 +27,23 @@ export default function App() {
           }
         >
           <Route index element={<Dashboard />} />
-          <Route path="players" element={<PlayersPage />} />
-          <Route path="players/:playerId" element={<PlayerDetailsPage />} />
+          <Route path="me" element={<MyPlayerPage />} />
+          <Route
+            path="players"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN", "COACH"]}>
+                <PlayersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="players/:playerId"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN", "COACH"]}>
+                <PlayerDetailsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="events" element={<EventsPage />} />
           <Route path="events/:eventId" element={<EventDetailsPage />} />
           <Route path="events/:eventId/attendance" element={<AttendancePage />} />

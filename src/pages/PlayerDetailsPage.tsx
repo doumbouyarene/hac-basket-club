@@ -21,7 +21,7 @@ import {
   PolarRadiusAxis,
 } from "recharts"
 
-import { Paintbrush } from "lucide-react"
+import { Paintbrush, Trophy, Zap } from "lucide-react"
 import { Slider } from "@/components/ui/slider"
 import {
   Dialog,
@@ -36,8 +36,15 @@ function avg(values: number[]) {
   return values.reduce((a, b) => a + b, 0) / values.length
 }
 
-export function PlayerDetailsPage() {
-  const { playerId } = useParams<{ playerId: string }>()
+export type PlayerDetailsPageProps = {
+  forcedPlayerId?: string
+  readOnly?: boolean
+}
+
+export function PlayerDetailsPage({ forcedPlayerId, readOnly }: PlayerDetailsPageProps) {
+  const params = useParams<{ playerId: string }>()
+  const playerId = forcedPlayerId ?? params.playerId
+
   const navigate = useNavigate()
   const [player, setPlayer] = useState<PlayerRow | null>(null)
   const [stats, setStats] = useState<PlayerMatchStat[]>([])
@@ -91,10 +98,14 @@ const sum = (field: keyof PlayerMatchStat) =>
   }
 
   const totalEvents   = attendance.length
-  const totalPresent  = attendance.filter(a => a.status === "PRESENT").length
-  const totalAbsent   = attendance.filter(a => a.status === "ABSENT").length
-  const attendanceRate = (totalPresent + totalAbsent) > 0
-    ? Math.round((totalPresent / (totalPresent + totalAbsent)) * 100)
+  const totalPresent = attendance.filter(a => a.status === "PRESENT" || a.status === "LATE").length
+  const totalAbsent = attendance.filter(a => a.status === "ABSENT").length
+  const totalRelevant = attendance.filter(a =>
+    a.status === "PRESENT" || a.status === "LATE" || a.status === "ABSENT"
+  ).length
+
+  const attendanceRate = totalRelevant > 0
+    ? Math.round((totalPresent / totalRelevant) * 100)
     : null
 
     useEffect(() => {
@@ -194,6 +205,7 @@ const sum = (field: keyof PlayerMatchStat) =>
 
       <div className="relative">
         {/* Bouton pinceau */}
+        {!readOnly && (
         <button
           onClick={openAptitudes}
           className="absolute top-0 right-0 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition"
@@ -201,6 +213,7 @@ const sum = (field: keyof PlayerMatchStat) =>
         >
           <Paintbrush className="h-4 w-4" />
         </button>
+        )}
 
         <RadarChart width={300} height={300} data={radarData}>
           <PolarGrid />
@@ -333,6 +346,20 @@ const sum = (field: keyof PlayerMatchStat) =>
                         <div className="font-medium">{s.event?.title ?? "—"}</div>
                         <div className="text-xs text-muted-foreground">
                           {s.event?.start_at ? new Date(s.event.start_at).toLocaleDateString("fr-FR") : "—"}
+                        </div>
+                        <div className="mt-1 inline-flex items-center gap-2">
+                          {s.event?.mvp_player_id === playerId && (
+                            <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
+                              <Trophy className="h-3.5 w-3.5" />
+                              MVP
+                            </span>
+                          )}
+                          {s.event?.impact_player_id === playerId && (
+                            <span className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium">
+                              <Zap className="h-3.5 w-3.5" />
+                              Impact
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="p-2 text-center">{s.minutes_played ?? "—"}</td>

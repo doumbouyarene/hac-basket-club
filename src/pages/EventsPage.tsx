@@ -4,6 +4,7 @@ import type { Event, Team, EventType } from "../types/db"
 import { supabase } from "@/lib/supabase"
 import {
   listEvents,
+  listPlayerPublicEvents,
   listTeams,
   createEvent,
   updateEvent,
@@ -147,17 +148,19 @@ export function EventsPage() {
   }, [teams])
 
   async function reload() {
-    setLoading(true)
-    setError(null)
-    try {
+  setLoading(true)
+  setError(null)
+
+  try {
+    if (isStaff) {
       const [t, e] = await Promise.all([listTeams(), listEvents()])
+
       setTeams(t)
       setEvents(e)
-      // --- KPI Présents / Effectif total ---
-      
+
       const eventIds = e.map((x) => x.event_id)
       const teamIds = Array.from(new Set(e.map((x) => x.team_id).filter(Boolean)))
-      
+
       if (eventIds.length > 0) {
         const attRes = await supabase
           .from("attendance")
@@ -176,7 +179,6 @@ export function EventsPage() {
         setPresentByEvent({})
       }
 
-      // 1) Effectif total par team
       if (teamIds.length > 0) {
         const playersRes = await supabase
           .from("players")
@@ -194,23 +196,32 @@ export function EventsPage() {
         setTeamSizeByTeam({})
       }
 
-      // garder le team_id déjà choisi si possible
       setForm((prev) => ({
         ...emptyForm(t),
         ...prev,
         team_id: prev.team_id || t[0]?.team_id || "",
       }))
-      
-    } catch (err) {
-      setError(toErrorMessage(err))
-    } finally {
-      setLoading(false)
+
+      return
     }
+
+    const publicEvents = await listPlayerPublicEvents()
+    setEvents(publicEvents as Event[])
+    setTeams([])
+    setPresentByEvent({})
+    setTeamSizeByTeam({})
+  } catch (err) {
+    setError(toErrorMessage(err))
+  } finally {
+    setLoading(false)
   }
+}
 
   useEffect(() => {
+  if (!roleLoading) {
     reload()
-  }, [])
+  }
+  }, [roleLoading, role])
 
   function resetForm() {
     setForm(emptyForm(teams))
@@ -478,7 +489,7 @@ export function EventsPage() {
               <TableHead>Titre</TableHead>
               <TableHead>Début</TableHead>
               <TableHead>Lieu</TableHead>
-              <TableHead>Présences</TableHead>
+              {isStaff && <TableHead>Présences</TableHead>}
               {isStaff && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
@@ -520,6 +531,7 @@ export function EventsPage() {
                   <TableCell>{ev.title}</TableCell>
                   <TableCell>{formatDateFR(ev.start_at)}</TableCell>
                   <TableCell>{ev.location ?? "—"}</TableCell>
+                  {isStaff && (
                   <TableCell>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium">
@@ -530,6 +542,7 @@ export function EventsPage() {
                     </Link>
                   </div>
                 </TableCell>
+                )}
 
                   {isStaff && (
                     <TableCell className="text-right">

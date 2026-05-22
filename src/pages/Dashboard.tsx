@@ -4,6 +4,7 @@ import { useDashboardKpis } from "@/hooks/useDashboardKpis"
 
 export function Dashboard() {
   const { data, loading, error } = useDashboardKpis()
+  const lowAttendancePlayers = data?.lowAttendancePlayers ?? []
 
   if (error) return <div className="text-sm text-red-600">Erreur : {error}</div>
 
@@ -27,6 +28,36 @@ export function Dashboard() {
           <TopCard title="Top Interceptions" player={loading ? null : data?.topSteals} label="int/match" icon={Award} />
         </div>
       </section>
+
+      {/* Présences */}
+      {!loading && lowAttendancePlayers.length > 0 && (
+      <section className="space-y-3">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          Présence faible
+        </h3>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          {lowAttendancePlayers.map((p) => (
+            <Card key={p.playerId} className="shadow-sm">
+              <CardContent className="py-4 px-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium truncate">{p.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {p.present}/{p.total} présences
+                    </p>
+                  </div>
+
+                  <div className="text-xl font-bold text-red-600">
+                    {p.rate}%
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+    )}
 
       {/* Ligne 2 — Résultats */}
       <section className="space-y-3">

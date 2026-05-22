@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Role, Team, Player, Event } from '../types/db'
+import type { Role, Team, Player, Event, EventType, PlayerPublicEvent } from '../types/db'
 import type { AttendanceRow, AttendanceStatus } from '../types/db'
 
 
@@ -21,6 +21,43 @@ export async function getMyRole(): Promise<Role> {
 
   if (error) throw new Error(error.message)
   return data.role as Role
+}
+
+export async function getMyAppUser() {
+  const user = (await supabase.auth.getUser()).data.user
+  if (!user) throw new Error("Utilisateur non connecté")
+
+  const { data, error } = await supabase
+    .from("app_users")
+    .select("user_id, email, role")
+    .eq("user_id", user.id)
+    .single()
+
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function getMyPlayerProfile() {
+  const user = (await supabase.auth.getUser()).data.user
+  if (!user) throw new Error("Utilisateur non connecté")
+
+  const { data, error } = await supabase
+    .from("players")
+    .select("*")
+    .eq("user_id", user.id)
+    .limit(2)
+
+  if (error) throw new Error(error.message)
+
+  if (!data || data.length === 0) {
+    throw new Error("Aucune fiche joueur n'est visible pour ce compte.")
+  }
+
+  if (data.length > 1) {
+    throw new Error("Plusieurs fiches joueurs sont liées à ce compte.")
+  }
+
+  return data[0]
 }
 
 export async function listTeams(): Promise<Team[]> {
@@ -129,6 +166,16 @@ export async function getEventById(event_id: string) {
 
   if (error) throw new Error(error.message)
   return data
+}
+
+export async function listPlayerPublicEvents(): Promise<PlayerPublicEvent[]> {
+  const { data, error } = await supabase
+    .from("player_events_public")
+    .select("event_id, event_type, title, start_at, location, opponent_name, home_score, away_score")
+    .order("start_at", { ascending: false })
+
+  if (error) throw new Error(error.message)
+  return data as PlayerPublicEvent[]
 }
 
 export async function listAttendanceByEvent(event_id: string) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
-import { DashboardKpis, fetchDashboardKpis } from "@/services/dashboard.service"
+import { fetchDashboardKpis } from "@/services/dashboard.service"
+import { DashboardKpis } from "@/types/db"
 
 export function useDashboardKpis() {
   const [data, setData] = useState<DashboardKpis | null>(null)

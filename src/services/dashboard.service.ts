@@ -1,19 +1,5 @@
 import { supabase } from "@/lib/supabase"
-
-export type TopPlayer = { name: string; avg: number }
-
-export type DashboardKpis = {
-  playersActive: number
-  wins: number
-  losses: number
-  winRate: number
-  lastMatches: { title: string; homeScore: number; awayScore: number; opponent: string }[]
-  attendanceRate: number
-  topScorer: TopPlayer | null
-  topAssist: TopPlayer | null
-  topBlocks: TopPlayer | null
-  topSteals: TopPlayer | null
-}
+import { DashboardKpis, TopPlayer } from "@/types/db"
 
 export async function fetchDashboardKpis(): Promise<DashboardKpis> {
   const [
@@ -36,7 +22,11 @@ export async function fetchDashboardKpis(): Promise<DashboardKpis> {
 
     supabase
       .from("attendance")
-      .select("status"),
+      .select(`
+        status,
+        player_id,
+        players(first_name, last_name, status)
+      `),
 
     supabase
       .from("player_match_stats")
@@ -63,10 +53,16 @@ export async function fetchDashboardKpis(): Promise<DashboardKpis> {
 }))
 
   // Taux de présence
-  const att = attendanceRes.data ?? []
-  const relevant = att.filter(a => a.status === "PRESENT" || a.status === "ABSENT")
+  const rowsAttendance = (attendanceRes.data ?? []) as any[]
+  const att = rowsAttendance
+  const presentStatuses = ["PRESENT", "LATE"]
+  const relevantStatuses = ["PRESENT", "LATE", "ABSENT"]
+
+  const relevant = att.filter((a) => relevantStatuses.includes(a.status))
+  const presentLike = att.filter((a) => presentStatuses.includes(a.status))
+
   const attendanceRate = relevant.length > 0
-    ? Math.round((att.filter(a => a.status === "PRESENT").length / relevant.length) * 100)
+    ? Math.round((presentLike.length / relevant.length) * 100)
     : 0
 
   // Top players
@@ -85,6 +81,44 @@ export async function fetchDashboardKpis(): Promise<DashboardKpis> {
     return { name: best.name, avg: parseFloat((best.total / best.count).toFixed(1)) }
   }
 
+  const byPlayer = new Map<string, {
+  name: string
+  present: number
+  total: number
+    }>()
+
+    for (const row of rowsAttendance) {
+      if (!["PRESENT", "LATE", "ABSENT"].includes(row.status)) continue
+      if (row.players?.status !== "ACTIVE") continue
+
+      const name = `${row.players?.first_name ?? ""} ${row.players?.last_name ?? ""}`.trim()
+      const current = byPlayer.get(row.player_id) ?? {
+        name,
+        present: 0,
+        total: 0,
+      }
+
+      current.total += 1
+
+      if (row.status === "PRESENT" || row.status === "LATE") {
+        current.present += 1
+      }
+
+      byPlayer.set(row.player_id, current)
+    }
+
+    const lowAttendancePlayers = [...byPlayer.entries()]
+      .map(([playerId, value]) => ({
+        playerId,
+        name: value.name,
+        present: value.present,
+        total: value.total,
+        rate: value.total > 0 ? Math.round((value.present / value.total) * 100) : 0,
+      }))
+      .filter((p) => p.total >= 3 && p.rate < 70)
+      .sort((a, b) => a.rate - b.rate)
+      .slice(0, 5)
+
   return {
     playersActive: playersRes.count ?? 0,
     wins,
@@ -96,5 +130,6 @@ export async function fetchDashboardKpis(): Promise<DashboardKpis> {
     topAssist: topBy("assists"),
     topBlocks: topBy("blocks"),
     topSteals: topBy("steals"),
+    lowAttendancePlayers,
   }
 }

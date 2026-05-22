@@ -1,12 +1,21 @@
 import { NavLink } from "react-router-dom"
 import { LayoutDashboard, Users, CalendarDays, Tv, X } from "lucide-react"
+import { useRole } from "@/app/useRole"
 
-const links = [
+const staffLinks = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/players", label: "Joueurs", icon: Users },
   { to: "/events", label: "Événements", icon: CalendarDays },
-  { to: "/tactics", label: "Tactiques de Jeu", icon: Tv },
+  { to: "/tactics", label: "Tactiques de jeu", icon: Tv },
 ]
+
+const playerLinks = [
+  { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/events", label: "Événements", icon: CalendarDays },
+  { to: "/tactics", label: "Tactiques de jeu", icon: Tv },
+  { to: "/me", label: "Ma fiche", icon: Users },
+]
+
 
 type SidebarProps = {
   open: boolean
@@ -14,6 +23,9 @@ type SidebarProps = {
 }
 
 export function Sidebar({ open, onClose }: SidebarProps) {
+  const { role } = useRole()
+  const links = role === "PLAYER" ? playerLinks : staffLinks
+
   return (
     <aside
       className={[
