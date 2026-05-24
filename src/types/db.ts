@@ -111,3 +111,18 @@ export type PlayerAverages = {
   steals: number
   blocks: number
 }
+
+type CompareSummary = {
+  player: PlayerRow
+  games: number
+  points: number
+  rebounds: number
+  assists: number
+  steals: number
+  blocks: number
+  turnovers: number
+  plusMinus: number
+  attendanceRate: number | null
+  mvpCount: number
+  impactCount: number
+}

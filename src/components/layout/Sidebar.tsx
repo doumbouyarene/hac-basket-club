@@ -1,10 +1,11 @@
 import { NavLink } from "react-router-dom"
-import { LayoutDashboard, Users, CalendarDays, Tv, X } from "lucide-react"
 import { useRole } from "@/app/useRole"
+import { LayoutDashboard, Users, CalendarDays, Tv, X, GitCompare } from "lucide-react"
 
 const staffLinks = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/players", label: "Joueurs", icon: Users },
+  { to: "/compare", label: "Comparer les joueurs", icon: GitCompare },
   { to: "/events", label: "Événements", icon: CalendarDays },
   { to: "/tactics", label: "Tactiques de jeu", icon: Tv },
 ]

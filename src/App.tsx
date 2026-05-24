@@ -10,7 +10,7 @@ import { PlayerDetailsPage } from "@/pages/PlayerDetailsPage"
 import { EventDetailsPage } from "@/pages/EventDetailsPage"
 import { ProtectedRoute } from "@/app/ProtectedRoute"
 import { MyPlayerPage } from "@/pages/MyPlayerPage"
-
+import { ComparePlayersPage } from "@/pages/ComparePlayersPage"
 
 export default function App() {
   return (
@@ -48,6 +48,14 @@ export default function App() {
           <Route path="events/:eventId" element={<EventDetailsPage />} />
           <Route path="events/:eventId/attendance" element={<AttendancePage />} />
           <Route path="tactics" element={<TacticsPage />} />
+          <Route
+            path="compare"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN", "COACH"]}>
+                <ComparePlayersPage />
+              </ProtectedRoute>
+            }
+          />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

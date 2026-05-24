@@ -16,7 +16,7 @@ export function EventDetailsPage() {
   const [event, setEvent] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<"DETAILS" | "COMPOSITION" | "STATS">("DETAILS")
+  const [activeTab, setActiveTab] = useState<"DETAILS" | "COMPOSITION" | "STATS" | "POST_MATCH">("DETAILS")
   const [homeScore, setHomeScore] = useState<number | "">("")
   const [awayScore, setAwayScore] = useState<number | "">("")
   const [savingScore, setSavingScore] = useState(false)
@@ -156,6 +156,109 @@ export function EventDetailsPage() {
     return <div className="p-6 text-red-600">{error}</div>
   }
 
+  const requiredStatFields: (keyof PlayerMatchStat)[] = [
+    "minutes_played",
+    "points",
+    "rebounds",
+    "assists",
+    "steals",
+    "blocks",
+    "turnovers",
+    "fouls",
+    "fg2_made",
+    "fg2_attempted",
+    "fg3_made",
+    "fg3_attempted",
+    "ft_made",
+    "ft_attempted",
+    "plus_minus",
+        ]
+
+    const hasUnsavedStats = Object.keys(draftStats).length > 0
+
+    const completedStats = players
+    .map((player) => statFor(player.player_id))
+    .filter(Boolean) as PlayerMatchStat[]
+
+    const allPlayersHaveStats =
+    players.length > 0 && completedStats.length === players.length
+
+    const allStatsFieldsFilled =
+    allPlayersHaveStats &&
+    completedStats.every((stat) =>
+        requiredStatFields.every((field) => stat[field] !== null && stat[field] !== undefined)
+    )
+
+    const scoreFilled = event.home_score !== null && event.away_score !== null
+    const awardsFilled = Boolean(event.mvp_player_id && event.impact_player_id)
+
+    const canShowPostMatch =
+    allStatsFieldsFilled &&
+    scoreFilled &&
+    awardsFilled &&
+    !hasUnsavedStats
+    
+    function topBy(field: keyof PlayerMatchStat) {
+    return completedStats
+        .map((stat) => ({
+        stat,
+        player: players.find((p) => p.player_id === stat.player_id),
+        value: Number(stat[field] ?? 0),
+        }))
+        .filter((row) => row.player)
+        .sort((a, b) => b.value - a.value)[0]
+    }
+
+    function playerName(playerId: string | null) {
+    if (!playerId) return "Non renseigné"
+    const player = players.find((p) => p.player_id === playerId)
+    return player ? `${player.last_name} ${player.first_name}` : "Non renseigné"
+    }
+
+    const topScorer = topBy("points")
+    const topRebounder = topBy("rebounds")
+    const topAssist = topBy("assists")
+    const topSteals = topBy("steals")
+    const topBlocks = topBy("blocks")
+    const bestPlusMinus = topBy("plus_minus")
+
+    const teamTotals = completedStats.reduce(
+    (acc, stat) => {
+        acc.points += stat.points ?? 0
+        acc.rebounds += stat.rebounds ?? 0
+        acc.assists += stat.assists ?? 0
+        acc.steals += stat.steals ?? 0
+        acc.blocks += stat.blocks ?? 0
+        acc.turnovers += stat.turnovers ?? 0
+        acc.fg2Made += stat.fg2_made ?? 0
+        acc.fg2Attempted += stat.fg2_attempted ?? 0
+        acc.fg3Made += stat.fg3_made ?? 0
+        acc.fg3Attempted += stat.fg3_attempted ?? 0
+        acc.ftMade += stat.ft_made ?? 0
+        acc.ftAttempted += stat.ft_attempted ?? 0
+        return acc
+    },
+    {
+        points: 0,
+        rebounds: 0,
+        assists: 0,
+        steals: 0,
+        blocks: 0,
+        turnovers: 0,
+        fg2Made: 0,
+        fg2Attempted: 0,
+        fg3Made: 0,
+        fg3Attempted: 0,
+        ftMade: 0,
+        ftAttempted: 0,
+    }
+    )
+
+    function pct(made: number, attempted: number) {
+    if (attempted === 0) return "—"
+    return `${Math.round((made / attempted) * 100)}%`
+    }
+
   return (
     <div className="p-6 space-y-4">
       <h1 className="text-2xl font-semibold">{event.title}</h1>
@@ -195,6 +298,19 @@ export function EventDetailsPage() {
             >
             Composition
             </button>
+
+            {canShowPostMatch && (
+            <button
+                className={`pb-2 text-sm font-medium ${
+                activeTab === "POST_MATCH"
+                    ? "border-b-2 border-primary text-primary"
+                    : "text-muted-foreground"
+                }`}
+                onClick={() => setActiveTab("POST_MATCH")}
+            >
+                Après-Match
+            </button>
+            )}
 
         </nav>
         </div>
@@ -577,6 +693,104 @@ export function EventDetailsPage() {
                 ))}
             </div>
             )}
+        </div>
+        )}
+
+        {activeTab === "POST_MATCH" && canShowPostMatch && (
+        <div className="space-y-6">
+            <div>
+            <h2 className="text-lg font-semibold">Rapport après-match</h2>
+            <p className="text-sm text-muted-foreground">
+                Synthèse générée à partir des statistiques enregistrées.
+            </p>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-4">
+            <div className="rounded-md border bg-background p-4">
+                <div className="text-xs text-muted-foreground">Score</div>
+                <div className="text-2xl font-bold">
+                HAC {event.home_score ?? "—"} - {event.away_score ?? "—"}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                {event.opponent_name ?? "Adversaire"}
+                </div>
+            </div>
+
+            <div className="rounded-md border bg-background p-4">
+                <div className="text-xs text-muted-foreground">MVP</div>
+                <div className="flex items-center gap-2 text-lg font-semibold">
+                <Trophy className="h-4 w-4 text-amber-600" />
+                {playerName(event.mvp_player_id)}
+                </div>
+            </div>
+
+            <div className="rounded-md border bg-background p-4">
+                <div className="text-xs text-muted-foreground">Impact Player</div>
+                <div className="flex items-center gap-2 text-lg font-semibold">
+                <Zap className="h-4 w-4 text-blue-600" />
+                {playerName(event.impact_player_id)}
+                </div>
+            </div>
+
+            <div className="rounded-md border bg-background p-4">
+                <div className="text-xs text-muted-foreground">Pertes de balle</div>
+                <div className="text-2xl font-bold">{teamTotals.turnovers}</div>
+            </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+            {[
+                { label: "Meilleur scoreur", row: topScorer, suffix: "pts" },
+                { label: "Meilleur rebondeur", row: topRebounder, suffix: "reb" },
+                { label: "Meilleur passeur", row: topAssist, suffix: "ast" },
+                { label: "Interceptions", row: topSteals, suffix: "int" },
+                { label: "Contres", row: topBlocks, suffix: "blk" },
+                { label: "Meilleur +/-", row: bestPlusMinus, suffix: "+/-" },
+            ].map((item) => (
+                <div key={item.label} className="rounded-md border bg-background p-4">
+                <div className="text-xs text-muted-foreground">{item.label}</div>
+                <div className="mt-1 font-semibold">
+                    {item.row?.player?.last_name} {item.row?.player?.first_name}
+                </div>
+                <div className="text-2xl font-bold">
+                    {item.row?.value ?? "—"} {item.suffix}
+                </div>
+                </div>
+            ))}
+            </div>
+
+            <div className="rounded-md border bg-background p-4 space-y-3">
+            <h3 className="font-semibold">Adresse équipe</h3>
+
+            <div className="grid gap-3 md:grid-cols-3">
+                <div>
+                <div className="text-2xl font-bold">
+                    {pct(teamTotals.fg2Made, teamTotals.fg2Attempted)}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                    2pts · {teamTotals.fg2Made}/{teamTotals.fg2Attempted}
+                </div>
+                </div>
+
+                <div>
+                <div className="text-2xl font-bold">
+                    {pct(teamTotals.fg3Made, teamTotals.fg3Attempted)}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                    3pts · {teamTotals.fg3Made}/{teamTotals.fg3Attempted}
+                </div>
+                </div>
+
+                <div>
+                <div className="text-2xl font-bold">
+                    {pct(teamTotals.ftMade, teamTotals.ftAttempted)}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                    LF · {teamTotals.ftMade}/{teamTotals.ftAttempted}
+                </div>
+                </div>
+            </div>
+            </div>
         </div>
         )}
     </div>

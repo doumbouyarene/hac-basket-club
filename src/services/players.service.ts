@@ -61,24 +61,30 @@ export async function listPlayers(params: {
   const { search, status, team_id } = params
 
   let q = supabase
-    .from("players")
-    .select(`
-        player_id,
-        team_id,
-        first_name,
-        last_name,
-        birth_date,
-        birth_place,
-        height_cm,
-        weight_kg,
-        neighborhood,
-        position,
-        status,
-        photo_url,
-        archetype
-        `)
-    .order("last_name", { ascending: true })
-    .order("first_name", { ascending: true })
+  .from("players")
+  .select(`
+      player_id,
+      team_id,
+      first_name,
+      last_name,
+      birth_date,
+      birth_place,
+      height_cm,
+      weight_kg,
+      neighborhood,
+      position,
+      status,
+      photo_url,
+      archetype,
+      off_rating,
+      def_rating,
+      tec_rating,
+      phy_rating,
+      spd_rating,
+      sta_rating
+      `)
+  .order("last_name", { ascending: true })
+  .order("first_name", { ascending: true })
 
   if (team_id) q = q.eq("team_id", team_id)
   if (status && status !== "ALL") q = q.eq("status", status)
